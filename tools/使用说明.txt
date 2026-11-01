@@ -1,0 +1,19 @@
+曲率实验室 · 离线版
+
+使用方法
+  解压后，双击 index.html，用浏览器打开即可。
+  不需要联网，字体已经放在 assets/fonts 里。
+
+推荐浏览器
+  Chrome、Edge、Safari、Firefox 近两年的版本。
+
+怎么玩
+  1. 拖动页面顶部的曲率 K 滑块，在球面（K > 0）、平面（K = 0）、双曲平面（K < 0）之间切换。
+  2. 在“三角形与和乐”“圆的周长”“测地线偏离”“平行公设”四个实验之间切换。
+  3. 在画布上拖动顶点、圆心或点 P；右侧滑块可以调整参数，读数会实时更新。
+
+在线版
+  https://wanglu2016.github.io/qulv-shiyanshi/
+
+源代码
+  https://github.com/wanglu2016/qulv-shiyanshi

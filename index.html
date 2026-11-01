@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>曲率实验室</title>
+<meta name="description" content="交互式黎曼几何实验台：拖动高斯曲率 K，在球面、平面、双曲平面之间连续切换，亲手验证高斯–博内定理、圆周长、测地线偏离、平行公设与和乐。">
+<meta name="theme-color" content="#e7ebef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d131a" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="曲率实验室">
+<meta property="og:description" content="交互式黎曼几何实验台：拖动高斯曲率 K，在球面、平面、双曲平面之间连续切换，亲手验证高斯–博内定理、圆周长、测地线偏离、平行公设与和乐。">
+<meta property="og:url" content="https://wanglu2016.github.io/qulv-shiyanshi/">
+<meta property="og:image" content="https://wanglu2016.github.io/qulv-shiyanshi/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+html{-webkit-text-size-adjust:100%}
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+:root{
+  /* 布局：顶部曲率条通栏 → 实验台（画布 | 仪表侧栏，窄屏堆叠）→ 三种空间对照表 → 概念卡 */
+  --bg:#e7ebef; --surface:#f5f7f9; --canvas:#fbfcfd; --fg:#141c26; --muted:#556172;
+  --line:#c5cdd7; --grid:#e0e5eb;
+  --pos:#c24f2a; --neg:#0b7a83; --flat:#5f6772; --mark:#a06100; --kc:#c24f2a;
+  --f-display:"Noto Serif SC","Source Han Serif SC","Songti SC",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --f-math:"STIX Two Text","STIX Two Math","Cambria Math","Times New Roman",serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d131a; --surface:#151d26; --canvas:#10171f; --fg:#e2e8ee; --muted:#8e9bac;
+    --line:#293544; --grid:#1a2430; --pos:#ff8a5b; --neg:#45c6bd; --flat:#a3acb8; --mark:#ebb54d;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d131a; --surface:#151d26; --canvas:#10171f; --fg:#e2e8ee; --muted:#8e9bac;
+  --line:#293544; --grid:#1a2430; --pos:#ff8a5b; --neg:#45c6bd; --flat:#a3acb8; --mark:#ebb54d;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.65}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px;display:flex;flex-direction:column;gap:24px}
+i.m,.m i,.formula i{font-family:var(--f-math);font-style:italic}
+.m{font-family:var(--f-math)}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.16em;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(2.2rem,5.4vw,3.4rem);line-height:1.08;margin:.12em 0 .25em;letter-spacing:.03em;text-wrap:balance}
+.lead{margin:0;max-width:42em;color:var(--muted);font-size:15.5px}
+
+/* K bar */
+.kbar{display:grid;grid-template-columns:minmax(220px,auto) minmax(0,1fr);gap:10px 32px;align-items:center;padding-block:18px;border-block:1px solid var(--line)}
+.kread{display:flex;flex-direction:column;gap:2px}
+#kOut{font-family:var(--f-math);font-style:italic;font-size:clamp(2.1rem,4.6vw,3rem);line-height:1.05;font-variant-numeric:tabular-nums;color:var(--kc);white-space:nowrap}
+#kName{font-family:var(--f-display);font-weight:600;font-size:1.08rem}
+.kctl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.kscale{display:grid;grid-template-columns:1fr 1fr 1fr;font-size:12px;color:var(--muted)}
+.kscale span:nth-child(2){text-align:center}.kscale span:nth-child(3){text-align:right}
+.kscale b{font-family:var(--f-mono);font-weight:400;margin-right:4px}
+#kMeta{font-size:13px;color:var(--muted);margin:0}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+button{font:inherit;color:inherit}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 14px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;background:transparent;height:24px;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--canvas);border:2px solid var(--fg);margin-top:-6px}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--line)}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--canvas);border:2px solid var(--fg)}
+#kRange{height:36px}
+#kRange::-webkit-slider-runnable-track{height:10px;border-radius:5px;background:linear-gradient(90deg,var(--neg),var(--flat) 50%,var(--pos))}
+#kRange::-webkit-slider-thumb{width:26px;height:26px;margin-top:-8px;border:3px solid var(--kc);background:var(--canvas)}
+#kRange::-moz-range-track{height:10px;border-radius:5px;background:linear-gradient(90deg,var(--neg),var(--flat) 50%,var(--pos))}
+#kRange::-moz-range-thumb{width:20px;height:20px;border:3px solid var(--kc);background:var(--canvas)}
+
+/* lab */
+.lab{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:28px;align-items:start}
+.stage-col{min-width:0}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:14px;scrollbar-width:none}
+.tab{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:8px 14px;color:var(--muted);cursor:pointer;white-space:nowrap;font-size:14.5px}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--kc);font-weight:700}
+.stage-box{width:100%;max-width:720px;margin:0 auto}
+#stage{display:block;width:100%;border-radius:var(--r);background:var(--canvas);border:1px solid var(--line);touch-action:none;cursor:crosshair}
+.hint{margin:10px 0 0;font-size:13.5px;color:var(--muted);max-width:60em}
+.layers{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:10px;font-size:13.5px}
+.toggle{display:inline-flex;gap:7px;align-items:center;cursor:pointer}
+.toggle input{accent-color:var(--fg);width:15px;height:15px;margin:0}
+
+.side{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{display:flex;flex-direction:column;gap:14px}
+.panel h2{font-family:var(--f-display);font-size:1.3rem;margin:0;line-height:1.3}
+.ctrl{display:flex;flex-direction:column;gap:2px}
+.ctrl label{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+.ctrl output{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--fg);background:var(--fg);color:var(--bg);border-radius:8px;padding:6px 14px;font-size:13.5px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.read{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:0}
+.read>div{background:var(--surface);padding:7px 11px;min-width:0}
+.read dt{font-size:11.5px;color:var(--muted)}
+.read dd{margin:0;font-family:var(--f-mono);font-size:14.5px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.read .wide{grid-column:1/-1}
+.read .key dd{color:var(--kc);font-weight:600}
+.read dd.txt{font-family:var(--f-body);font-size:14px}
+.formula{margin:0;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--surface)}
+.formula small{display:block;font-size:11px;letter-spacing:.12em;color:var(--muted)}
+.formula .eq{font-family:var(--f-math);font-size:1.12rem;line-height:1.5}
+.note{font-size:13.5px;color:var(--muted);margin:0}
+.card{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.04em}
+.card canvas{width:100%;display:block}
+#chart{height:190px}
+#c3d{height:230px;cursor:grab;touch-action:none}
+figcaption{font-size:12.5px;color:var(--muted);line-height:1.55}
+.sw{display:inline-block;width:16px;border-top:2px solid;vertical-align:4px;margin:0 4px 0 6px}
+.sw.d{border-top-style:dashed}
+
+/* compare + concepts */
+.sec h2{font-family:var(--f-display);font-size:1.55rem;margin:0 0 4px}
+.sec>p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+th,td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+tr:last-child th,tr:last-child td{border-bottom:0}
+thead th{font-family:var(--f-display);font-weight:600;font-size:15px;white-space:nowrap}
+thead th .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}
+tbody th{color:var(--muted);font-weight:500;white-space:nowrap;font-size:13.5px}
+.cgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.concept{padding:16px 18px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.concept h3{font-family:var(--f-display);font-size:1.1rem;margin:0}
+.concept .en{font-family:var(--f-math);font-style:italic;color:var(--muted);font-size:13.5px;margin-left:6px;font-weight:400}
+.concept p{margin:0;font-size:14px}
+.concept .go{margin-top:auto;align-self:flex-start}
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;max-width:62em}
+footer p{margin:0 0 6px}
+footer a{color:var(--fg);text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--kc);outline-offset:2px}
+
+@media (max-width:980px){.lab{grid-template-columns:minmax(0,1fr)}.cgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.kbar{grid-template-columns:minmax(0,1fr)}.cgrid{grid-template-columns:minmax(0,1fr)}.tab{padding:8px 10px;font-size:14px}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="eyebrow">黎曼几何 · 常曲率曲面</p>
+  <h1>曲率实验室</h1>
+  <p class="lead">同一块画布，三种几何。拖动高斯曲率 <i class="m">K</i>，空间从球面经过平面连续变成双曲平面。三角形的内角和、圆的周长、测地线的走向、平行线的条数，都会跟着改变。</p>
+</header>
+
+<section class="kbar" aria-label="曲率控制">
+  <div class="kread">
+    <output id="kOut" for="kRange">K = +1.00</output>
+    <span id="kName">球面几何 · 正曲率</span>
+  </div>
+  <div class="kctl">
+    <input type="range" id="kRange" min="-1.5" max="1.5" step="0.01" value="1" aria-label="高斯曲率 K">
+    <div class="kscale"><span><b>−1.5</b>双曲</span><span><b>0</b>平面</span><span><b>+1.5</b>球面</span></div>
+    <p id="kMeta"></p>
+    <div class="presets">
+      <button class="chip" data-k="1" type="button"><span class="dot" style="background:var(--pos)"></span>球面 K = +1</button>
+      <button class="chip" data-k="0" type="button"><span class="dot" style="background:var(--flat)"></span>平面 K = 0</button>
+      <button class="chip" data-k="-1" type="button"><span class="dot" style="background:var(--neg)"></span>双曲 K = −1</button>
+      <button class="chip" id="sweep" type="button" aria-pressed="false">自动扫描 K</button>
+    </div>
+  </div>
+</section>
+
+<section class="lab" id="lab">
+  <div class="stage-col">
+    <nav class="tabs" role="tablist" aria-label="实验">
+      <button class="tab" role="tab" data-tab="tri" aria-selected="true">三角形与和乐</button>
+      <button class="tab" role="tab" data-tab="circ" aria-selected="false">圆的周长</button>
+      <button class="tab" role="tab" data-tab="dev" aria-selected="false">测地线偏离</button>
+      <button class="tab" role="tab" data-tab="par" aria-selected="false">平行公设</button>
+    </nav>
+    <div class="stage-box">
+      <canvas id="stage" aria-label="几何画布"></canvas>
+      <p class="hint" id="hint"></p>
+      <div class="layers">
+        <label class="toggle"><input type="checkbox" id="lyPolar" checked>测地极坐标网（每圈相距 0.5）</label>
+        <label class="toggle"><input type="checkbox" id="lyTissot">等大小圆（看度量怎样拉伸）</label>
+      </div>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="panel" data-panel="tri">
+      <h2>测地三角形：内角和与平行移动</h2>
+      <div class="ctrl"><label for="triSize">三角形大小<output id="oTriSize">1.10</output></label><input type="range" id="triSize" min="0.2" max="3" step="0.01" value="1.1"></div>
+      <div class="btnrow"><button class="btn" id="tpGo" type="button">沿边平行移动一圈</button><button class="btn ghost" id="triReset" type="button">重置三角形</button></div>
+      <dl class="read">
+        <div><dt>α</dt><dd id="rA"></dd></div><div><dt>β</dt><dd id="rB"></dd></div>
+        <div><dt>γ</dt><dd id="rC"></dd></div><div><dt>内角和 Σ</dt><dd id="rSum"></dd></div>
+        <div class="key"><dt>角盈 Σ − π（弧度）</dt><dd id="rExc"></dd></div><div class="key"><dt>K × 面积</dt><dd id="rKA"></dd></div>
+        <div><dt>测得面积 A</dt><dd id="rArea"></dd></div><div><dt>和乐角（测得）</dt><dd id="rHol"></dd></div>
+        <div class="wide"><dt>边长 a · b · c</dt><dd id="rSides"></dd></div>
+      </dl>
+      <p class="formula"><small>高斯–博内定理</small><span class="eq">Σ − π = ∬ <i>K</i> d<i>A</i> = <i>K</i>·<i>A</i></span></p>
+      <p class="note">角度从测地线的切方向量出，面积沿边界积分得到，两者互不依赖。它们总是相等。把向量沿三条边平行移动一圈，回到起点时转过的角度也等于 <i class="m">K·A</i>，这个角叫和乐。</p>
+    </div>
+
+    <div class="panel" data-panel="circ" hidden>
+      <h2>圆：周长不再是 2π<i class="m">R</i></h2>
+      <div class="ctrl"><label for="cR">半径 R<output id="oR">1.50</output></label><input type="range" id="cR" min="0.05" max="3" step="0.01" value="1.5"></div>
+      <dl class="read">
+        <div><dt>半径 R</dt><dd id="cRv"></dd></div><div><dt>欧氏预期 2πR</dt><dd id="cCe"></dd></div>
+        <div class="key"><dt>测得周长 C</dt><dd id="cCm"></dd></div><div class="key"><dt>C ÷ 2πR</dt><dd id="cRatio"></dd></div>
+        <div><dt>测得面积</dt><dd id="cAm"></dd></div><div><dt>欧氏预期 πR²</dt><dd id="cAe"></dd></div>
+        <div class="wide key"><dt>由周长亏损反推曲率 3(2πR − C)/(πR³)</dt><dd id="cKest"></dd></div>
+      </dl>
+      <p class="formula"><small>测地圆周长</small><span class="eq"><i>C</i>(<i>R</i>) = 2π·sn<sub><i>K</i></sub>(<i>R</i>) ≈ 2π<i>R</i> − (π/3)<i>K R</i>³</span></p>
+      <p class="note">sn<sub>K</sub> 在球面是 sin(√K R)/√K，在平面是 R，在双曲是 sinh(√−K R)/√−K。把半径调小，反推出的曲率会趋近当前的 K：住在曲面里的人只靠量圆，就能知道自己的空间弯不弯。这就是高斯的绝妙定理想说的事。</p>
+    </div>
+
+    <div class="panel" data-panel="dev" hidden>
+      <h2>测地线偏离：雅可比方程</h2>
+      <div class="ctrl"><label for="dN">测地线条数<output id="oN">9</output></label><input type="range" id="dN" min="3" max="17" step="1" value="9"></div>
+      <div class="ctrl"><label for="dSpread">张角 Δθ<output id="oSpread">24°</output></label><input type="range" id="dSpread" min="4" max="70" step="1" value="24"></div>
+      <div class="ctrl"><label for="dL">走过的距离 s<output id="oL">3.14</output></label><input type="range" id="dL" min="0.5" max="5.5" step="0.01" value="3.1416"></div>
+      <div class="btnrow"><button class="btn ghost" id="dConj" type="button">走到共轭点 s = π/√K</button></div>
+      <dl class="read">
+        <div><dt>距离 s</dt><dd id="dLv"></dd></div><div><dt>欧氏预期 Δθ·s</dt><dd id="dJe"></dd></div>
+        <div class="key"><dt>测得外侧间距 J</dt><dd id="dJm"></dd></div><div class="key"><dt>J ÷ (Δθ·s)</dt><dd id="dRatio"></dd></div>
+        <div class="wide"><dt>共轭点距离</dt><dd id="dConjV" class="txt"></dd></div>
+      </dl>
+      <p class="formula"><small>雅可比方程</small><span class="eq"><i>J</i>″(<i>s</i>) + <i>K</i>·<i>J</i>(<i>s</i>) = 0，<i>J</i>(<i>s</i>) = Δθ·sn<sub><i>K</i></sub>(<i>s</i>)</span></p>
+      <p class="note">正曲率让同一点出发的测地线重新聚拢，在 π/√K 处汇于共轭点，就像地球上所有经线在两极相交。负曲率让它们指数式分开，这是双曲空间里测地流混沌的根源。</p>
+    </div>
+
+    <div class="panel" data-panel="par" hidden>
+      <h2>平行公设：过一点能画几条平行线</h2>
+      <div class="ctrl"><label for="pH">点 P 到直线 L 的距离 h<output id="oH">0.90</output></label><input type="range" id="pH" min="0.05" max="3" step="0.01" value="0.9"></div>
+      <div class="ctrl"><label for="pPsi">高亮直线与垂线的夹角 ψ<output id="oPsi">60°</output></label><input type="range" id="pPsi" min="0" max="180" step="0.5" value="60"></div>
+      <dl class="read">
+        <div><dt>距离 h</dt><dd id="pHv"></dd></div><div class="key"><dt>平行角 Π(h)</dt><dd id="pPi"></dd></div>
+        <div class="wide key"><dt>过 P 且不与 L 相交的直线</dt><dd id="pCount" class="txt"></dd></div>
+        <div class="wide"><dt>高亮直线</dt><dd id="pLine" class="txt"></dd></div>
+      </dl>
+      <p class="formula"><small>罗巴切夫斯基平行角</small><span class="eq">tan(Π/2) = e<sup>−√−<i>K</i>·<i>h</i></sup></span></p>
+      <p class="note">与垂线夹角小于 Π(h) 的直线都会碰到 L。夹角恰好为 Π 的两条是渐近平行线，在无穷远处与 L 相会；更斜的直线永远碰不到 L。欧氏平面里 Π 恒为 90°，只剩一条平行线；球面上任意两条大圆都相交。</p>
+    </div>
+
+    <figure class="card">
+      <h3 id="chartTitle">定量曲线</h3>
+      <canvas id="chart"></canvas>
+      <figcaption id="chartCap"></figcaption>
+    </figure>
+    <figure class="card">
+      <h3>放进三维空间看（可拖动旋转）</h3>
+      <canvas id="c3d"></canvas>
+      <figcaption id="c3dCap"></figcaption>
+    </figure>
+  </aside>
+</section>
+
+<section class="sec">
+  <h2>三种空间对照</h2>
+  <p>常曲率曲面只有三类。下表的每一行都能在上面的实验里亲手验证。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th><span class="dot" style="background:var(--pos)"></span>球面 K &gt; 0</th><th><span class="dot" style="background:var(--flat)"></span>欧氏平面 K = 0</th><th><span class="dot" style="background:var(--neg)"></span>双曲平面 K &lt; 0</th></tr></thead>
+    <tbody>
+      <tr><th>三角形内角和</th><td>大于 π，多出 K·A</td><td>恰好等于 π</td><td>小于 π，少了 |K|·A</td></tr>
+      <tr><th>半径 R 的圆周长</th><td class="m">2π sin(√K R)/√K &lt; 2πR</td><td class="m">2πR</td><td class="m">2π sinh(√−K R)/√−K &gt; 2πR</td></tr>
+      <tr><th>度量（测地极坐标）</th><td class="m">ds² = dr² + (sin √K r / √K)² dθ²</td><td class="m">ds² = dr² + r² dθ²</td><td class="m">ds² = dr² + (sinh √−K r / √−K)² dθ²</td></tr>
+      <tr><th>过直线外一点的平行线</th><td>0 条</td><td>1 条</td><td>无穷多条</td></tr>
+      <tr><th>同一点出发的测地线</th><td>汇聚，在 π/√K 处重新相交</td><td>线性分开</td><td>指数分开</td></tr>
+      <tr><th>沿闭路平行移动向量</th><td>与绕行方向同向转 K·A</td><td>不转</td><td>反向转 |K|·A</td></tr>
+      <tr><th>三角形面积上限</th><td>受球面总面积 4π/K 限制</td><td>无上限</td><td>π/|K|（三个角都趋于 0）</td></tr>
+      <tr><th>常见模型</th><td>球面、球极投影</td><td>平面、圆柱面（也是平的）</td><td>庞加莱圆盘、上半平面、双曲面、伪球面</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="sec">
+  <h2>六个关键概念</h2>
+  <p>黎曼几何的主线：先给出度量，再由度量推出测地线、曲率和它们的一切后果。</p>
+  <div class="cgrid">
+    <article class="concept"><h3>度量张量<span class="en">g<sub>ij</sub></span></h3><p>在每一点规定怎样量长度和角度，几何就从这里开始。本页画布的度量是 <span class="m">ds² = (dx² + dy²) / (1 + K(x² + y²)/4)²</span>。打开“等大小圆”图层：这些小圆的真实半径完全相同，画出来却大小不一，因为度量在逐点变化。</p><button class="btn ghost go" data-go="circ" type="button">去看度量</button></article>
+    <article class="concept"><h3>测地线<span class="en">geodesic</span></h3><p>局部最短的曲线，是“直线”在弯曲空间里的推广。在这个画布模型中，测地线总是画成圆弧或直线。它们看起来弯，是投影造成的；在空间内部走，它们一点也不拐弯。</p><button class="btn ghost go" data-go="par" type="button">去看直线</button></article>
+    <article class="concept"><h3>曲率是内蕴的<span class="en">Theorema Egregium</span></h3><p>高斯曲率只依赖度量，不依赖曲面怎样放在外部空间里。纸卷成圆柱，曲率仍是 0；球面怎么弯折都压不平。住在曲面里的人量一量小圆的周长，就能算出 K。</p><button class="btn ghost go" data-go="circ" type="button">去量圆</button></article>
+    <article class="concept"><h3>高斯–博内定理<span class="en">Gauss–Bonnet</span></h3><p>测地三角形的角盈等于它围住的总曲率：<span class="m">Σ − π = ∬K dA</span>。局部的曲率与整体的角度、乃至曲面的拓扑（欧拉示性数）被一个等式连在一起。</p><button class="btn ghost go" data-go="tri" type="button">去量三角形</button></article>
+    <article class="concept"><h3>平行移动与和乐<span class="en">holonomy</span></h3><p>沿一条路径“不转动”地搬运向量，这由联络规定。在弯曲空间里绕一圈回来，向量会转过一个角度，大小正是回路围住的总曲率。曲率可以理解为平行移动对路径的依赖程度。</p><button class="btn ghost go" data-go="tri" type="button">去移动向量</button></article>
+    <article class="concept"><h3>雅可比方程<span class="en">geodesic deviation</span></h3><p>相邻测地线的间距 J 满足 <span class="m">J″ + K·J = 0</span>。正曲率像引力一样把测地线拉拢，负曲率把它们推散。广义相对论中的潮汐力就是这个方程在四维时空里的版本。</p><button class="btn ghost go" data-go="dev" type="button">去看偏离</button></article>
+  </div>
+</section>
+
+<footer>
+  <p>画布使用曲率为 K 的共形模型（球极投影型）：K &gt; 0 时是球面从对径点投影到平面，整个球面铺满画布；K = 0 时就是普通平面；K &lt; 0 时是半径 2/√−K 的庞加莱圆盘。这个模型如实保留角度，长度则被拉伸：离中心越远，球面上的东西画得越大，双曲平面上的东西画得越小。</p>
+  <p>所有读数都由程序实际测量：角度取自测地线切方向，长度和面积对度量做数值积分，再与理论公式比较。</p>
+  <p>源代码与离线版：<a href="https://github.com/wanglu2016/qulv-shiyanshi">github.com/wanglu2016/qulv-shiyanshi</a></p>
+</footer>
+</div>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const TAU = Math.PI * 2, EPS = 1e-6;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FONT_BODY = '"Noto Sans SC","PingFang SC",system-ui,sans-serif';
+const FONT_MONO = '"JetBrains Mono",ui-monospace,monospace';
+const FONT_MATH = '"STIX Two Text","STIX Two Math","Times New Roman",serif';
+
+const DEFAULT_TRI = () => [{s:1.1,p:Math.PI/2},{s:1.1,p:Math.PI*7/6},{s:1.1,p:-Math.PI/6}];
+const state = {
+  K: 1, tab: 'tri',
+  tri: DEFAULT_TRI(),
+  tp: {mode:'off', t:0},
+  circ: {c:{s:0,p:0}, R:1.5},
+  dev: {n:9, spread:24*Math.PI/180, L:Math.PI},
+  par: {h:0.9, psi:60*Math.PI/180},
+  layers: {polar:true, tissot:false},
+  v3: {yaw:0.7, elev:0.95, auto:!reduceMotion},
+  sweep: false
+};
+let dirty = true;
+
+/* ---------- 曲率为 K 的共形模型：ds = |dw| / (1 + K|w|²/4) ---------- */
+const kAbs = () => Math.sqrt(Math.abs(state.K));
+function rOfS(s){ const K=state.K; if(Math.abs(K)<EPS) return s; const k=kAbs(); return K>0 ? 2/k*Math.tan(k*s/2) : 2/k*Math.tanh(k*s/2); }
+function sOfR(r){ const K=state.K; if(Math.abs(K)<EPS) return r; const k=kAbs(); if(K>0) return 2/k*Math.atan(k*r/2); return 2/k*Math.atanh(Math.min(k*r/2, 1-1e-12)); }
+function snK(s,K){ if(Math.abs(K)<EPS) return s; const k=Math.sqrt(Math.abs(K)); return K>0 ? Math.sin(k*s)/k : Math.sinh(k*s)/k; }
+const lam = w => 1/(1 + state.K*(w[0]*w[0]+w[1]*w[1])/4);
+const cabs = a => Math.hypot(a[0],a[1]);
+const carg = a => Math.atan2(a[1],a[0]);
+const polar = (r,t) => [r*Math.cos(t), r*Math.sin(t)];
+function cdiv(a,b){ const d=b[0]*b[0]+b[1]*b[1]; return [(a[0]*b[0]+a[1]*b[1])/d, (a[1]*b[0]-a[0]*b[1])/d]; }
+function den(b,w){ const c0=state.K*b[0]/4, c1=-state.K*b[1]/4; return [1-(c0*w[0]-c1*w[1]), -(c0*w[1]+c1*w[0])]; }
+/* 把原点搬到 b 的等距变换：T_b(w) = (w + b) / (1 − (K/4)·conj(b)·w) */
+function T(b,w){ return cdiv([w[0]+b[0], w[1]+b[1]], den(b,w)); }
+const Tinv = (b,w) => T([-b[0],-b[1]], w);
+/* 方向 dir 在 T_b 下的像方向（T 是共形的，只转不剪） */
+function tanAngle(b,w,dir){ const d=den(b,w); return dir - 2*Math.atan2(d[1],d[0]); }
+const dist = (p,q) => sOfR(cabs(Tinv(p,q)));
+const expMap = (p,ang,s) => T(p, polar(rOfS(s),ang));
+const wrapPi = a => { a=(a+Math.PI)%TAU; if(a<0) a+=TAU; return a-Math.PI; };
+function vertexCap(){ const K=state.K; return K>EPS ? Math.min(3.0, 0.95*Math.PI/Math.sqrt(K)) : 3.0; }
+const fromPolar = pt => polar(rOfS(Math.min(pt.s, vertexCap())), pt.p);
+const toPolar = w => ({s: sOfR(cabs(w)), p: carg(w)});
+function diskR(){ return state.K<-EPS ? 2/kAbs() : Infinity; }
+function clampModel(w){ const R=diskR()*0.99, r=cabs(w); return r>R ? [w[0]*R/r, w[1]*R/r] : w; }
+function geoSeg(p,q,n){ const q2=Tinv(p,q), a=carg(q2), S=sOfR(cabs(q2)), pts=[]; for(let i=0;i<=n;i++) pts.push(T(p, polar(rOfS(S*i/n),a))); return {pts,a,S}; }
+/* 真实面积：∮ (x dy − y dx) / (2(1 + K|w|²/4)) */
+function polyArea(pts){ let A=0; const n=pts.length; for(let i=0;i<n;i++){ const a=pts[i], b=pts[(i+1)%n]; const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; A += (a[0]*b[1]-a[1]*b[0]) / (2*(1+state.K*(mx*mx+my*my)/4)); } return A; }
+function curveLen(pts){ let L=0; for(let i=0;i<pts.length-1;i++){ const a=pts[i], b=pts[i+1]; L += Math.hypot(b[0]-a[0],b[1]-a[1]) * lam([(a[0]+b[0])/2,(a[1]+b[1])/2]); } return L; }
+function inPoly(m,poly){ let ins=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const a=poly[i], b=poly[j]; if(((a[1]>m[1])!==(b[1]>m[1])) && (m[0] < (b[0]-a[0])*(m[1]-a[1])/(b[1]-a[1])+a[0])) ins=!ins; } return ins; }
+
+/* ---------- 格式 ---------- */
+const minus = s => s.replace(/-/g,'−');
+const fmt = (x,d=3) => isFinite(x) ? minus((Math.abs(x)<0.5*Math.pow(10,-d)?0:x).toFixed(d)) : '∞';
+const sgn = (x,d=2) => { if(Math.abs(x)<0.5*Math.pow(10,-d)) return (0).toFixed(d); return (x>0?'+':'−')+Math.abs(x).toFixed(d); };
+const deg = (r,d=1) => fmt(r*180/Math.PI,d)+'°';
+
+/* ---------- 颜色（来自 CSS 变量） ---------- */
+let C = {};
+function readColors(){ const cs=getComputedStyle(document.documentElement); for(const k of ['surface','canvas','fg','muted','line','grid','pos','neg','flat','mark']) C[k]=cs.getPropertyValue('--'+k).trim(); }
+function hexRGB(h){ h=(h||'#888').replace('#',''); if(h.length===3) h=[...h].map(c=>c+c).join(''); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
+function mixRGB(a,b,t){ const A=hexRGB(a), B=hexRGB(b); return A.map((v,i)=>Math.round(v+(B[i]-v)*t)); }
+function kRGB(K=state.K){ const t=Math.max(-1,Math.min(1,K/1.2)); return t>=0 ? mixRGB(C.flat,C.pos,Math.sqrt(t)) : mixRGB(C.flat,C.neg,Math.sqrt(-t)); }
+const rgba = (c,a=1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const col = (name,a=1) => rgba(hexRGB(C[name]),a);
+
+/* ---------- 画布 ---------- */
+const cv=$('#stage'), ctx=cv.getContext('2d');
+const view={size:600,cx:300,cy:300,scale:100};
+let DPR=1;
+function halfWidth(){ const K=state.K, z=view.size<520?0.84:1; return K<-EPS ? Math.max(1.75, Math.min(3.2*z, 2.25/Math.sqrt(-K))) : 3.2*z; }
+const toScr = w => [view.cx+w[0]*view.scale, view.cy-w[1]*view.scale];
+const fromScr = (x,y) => [(x-view.cx)/view.scale, (view.cy-y)/view.scale];
+const okPt = w => isFinite(w[0]) && isFinite(w[1]) && Math.abs(w[0])<60 && Math.abs(w[1])<60;
+function tracePts(pts){ let pen=false, prev=null; for(const w of pts){ if(!okPt(w)){ pen=false; prev=null; continue; } const p=toScr(w); if(prev && Math.hypot(p[0]-prev[0],p[1]-prev[1])>view.size*0.5) pen=false; if(pen) ctx.lineTo(p[0],p[1]); else { ctx.moveTo(p[0],p[1]); pen=true; } prev=p; } }
+function strokePts(pts,style,w=1.5,dash){ ctx.beginPath(); tracePts(pts); ctx.strokeStyle=style; ctx.lineWidth=w; ctx.setLineDash(dash||[]); ctx.lineJoin='round'; ctx.stroke(); ctx.setLineDash([]); }
+function fillPts(pts,style){ if(!pts.every(okPt)) return; ctx.beginPath(); pts.forEach((w,i)=>{ const p=toScr(w); i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath(); ctx.fillStyle=style; ctx.fill(); }
+function dot(w,r,fill,stroke,lw=2){ if(!okPt(w)) return; const p=toScr(w); ctx.beginPath(); ctx.arc(p[0],p[1],r,0,TAU); if(fill){ ctx.fillStyle=fill; ctx.fill(); } if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); } }
+function text(str,x,y,o={}){ ctx.font=`${o.italic?'italic ':''}${o.weight||500} ${o.size||12}px ${o.font||FONT_BODY}`; ctx.textAlign=o.align||'left'; ctx.textBaseline=o.base||'middle'; if(o.halo!==false){ ctx.lineWidth=4; ctx.strokeStyle=C.canvas; ctx.lineJoin='round'; ctx.strokeText(str,x,y); } ctx.fillStyle=o.color||C.fg; ctx.fillText(str,x,y); }
+/* 真实长度为 len 的向量；画在模型里要乘 1/λ */
+function arrow(w,ang,len,style,lw=2.2){ if(!okPt(w)) return; const L=len/lam(w); const e=[w[0]+L*Math.cos(ang), w[1]+L*Math.sin(ang)]; if(!okPt(e)) return; const a=toScr(w), b=toScr(e); const sa=Math.atan2(b[1]-a[1],b[0]-a[0]); const hl=Math.min(9, Math.hypot(b[0]-a[0],b[1]-a[1])*0.45);
+  ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.strokeStyle=style; ctx.lineWidth=lw; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(b[0],b[1]); ctx.lineTo(b[0]-hl*Math.cos(sa-0.45), b[1]-hl*Math.sin(sa-0.45)); ctx.lineTo(b[0]-hl*Math.cos(sa+0.45), b[1]-hl*Math.sin(sa+0.45)); ctx.closePath(); ctx.fillStyle=style; ctx.fill(); }
+
+/* ---------- 背景：边界、赤道、极坐标网、等大小圆 ---------- */
+function drawBackground(){ const K=state.K, S=view.size, kc=kRGB();
+  ctx.fillStyle=C.canvas; ctx.fillRect(0,0,S,S);
+  if(K<-EPS){ const R=diskR()*view.scale; ctx.fillStyle=C.grid; ctx.fillRect(0,0,S,S); ctx.beginPath(); ctx.arc(view.cx,view.cy,R,0,TAU); ctx.fillStyle=C.canvas; ctx.fill(); }
+  if(state.layers.polar) drawPolar();
+  if(state.layers.tissot) drawTissot(kc);
+  if(K<-EPS){ const R=diskR()*view.scale; ctx.beginPath(); ctx.arc(view.cx,view.cy,R,0,TAU); ctx.strokeStyle=rgba(kc,.9); ctx.lineWidth=1.6; ctx.stroke(); if(R<S*0.485) text('理想边界 · 无穷远', view.cx, view.cy-R-10, {size:11,color:rgba(kc,1),align:'center'}); }
+  if(K>EPS){ const r=2/Math.sqrt(K)*view.scale; ctx.beginPath(); ctx.arc(view.cx,view.cy,r,0,TAU); ctx.setLineDash([5,5]); ctx.strokeStyle=rgba(kc,.75); ctx.lineWidth=1.2; ctx.stroke(); ctx.setLineDash([]); if(r<S*0.48) text('赤道（距 O 为 π/2√K）', view.cx, view.cy-r-10, {size:11,color:rgba(kc,1),align:'center'}); }
+  ctx.strokeStyle=C.muted; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(view.cx-5,view.cy); ctx.lineTo(view.cx+5,view.cy); ctx.moveTo(view.cx,view.cy-5); ctx.lineTo(view.cx,view.cy+5); ctx.stroke();
+  text('O', view.cx-8, view.cy+10, {size:11,color:C.muted,align:'right',font:FONT_MATH,italic:true});
+  const corner = Math.abs(K)<EPS ? '欧氏平面：画布上的长度就是真实长度' : K>0 ? '球极投影：O 的对径点在画布外无穷远处' : '庞加莱圆盘：越靠近边界，同样长度画得越短';
+  text(corner, 12, S-14, {size:11.5,color:C.muted});
+}
+function drawPolar(){ const K=state.K; const maxS = K>EPS ? Math.PI/Math.sqrt(K) : (K<-EPS ? 9/Math.sqrt(-K) : 30); const vis=halfWidth()*1.45; ctx.lineWidth=1; ctx.strokeStyle=col('line',0.8); let prevR=-10, labR=-99;
+  for(let s=0.5; s<maxS-1e-6; s+=0.5){ const r=rOfS(s); if(r>vis) break; const pr=r*view.scale; if(pr-prevR<2.5) break; prevR=pr; ctx.beginPath(); ctx.arc(view.cx,view.cy,pr,0,TAU); ctx.stroke(); if(Math.abs(s-Math.round(s))<1e-9 && pr>14 && pr-labR>16 && (labR=pr)) text(String(Math.round(s)), view.cx+pr+3, view.cy+8, {size:10,color:C.muted,font:FONT_MONO,halo:false}); }
+  ctx.strokeStyle=col('line',0.8); const Rend=Math.min(vis, diskR())*view.scale; for(let i=0;i<12;i++){ const a=i*TAU/12; ctx.beginPath(); ctx.moveTo(view.cx,view.cy); ctx.lineTo(view.cx+Rend*Math.cos(a), view.cy-Rend*Math.sin(a)); ctx.stroke(); } }
+function drawTissot(kc){ const hw=halfWidth(), step=hw/4.5, eps=0.12, R=diskR(); for(let i=-5;i<=5;i++) for(let j=-5;j<=5;j++){ const c=[i*step,j*step]; if(Math.abs(c[0])>hw||Math.abs(c[1])>hw) continue; if(cabs(c)>R*0.975) continue; if(eps/lam(c)>step*0.48) continue; const pts=[]; for(let k=0;k<=24;k++) pts.push(expMap(c,TAU*k/24,eps)); fillPts(pts, rgba(kc,0.16)); strokePts(pts, rgba(kc,0.6), 1); } }
+
+/* ---------- 实验一：三角形与和乐 ---------- */
+let lastTri=null, curves3d=[];
+function triData(){ const V=state.tri.map(fromPolar); const edges=[0,1,2].map(i=>geoSeg(V[i],V[(i+1)%3],140));
+  const ang=V.map((p,i)=>{ const a1=carg(Tinv(p,V[(i+1)%3])), a2=carg(Tinv(p,V[(i+2)%3])); return {a1, d:wrapPi(a2-a1)}; });
+  const poly=[]; edges.forEach(e=>{ for(let j=0;j<e.pts.length-1;j++) poly.push(e.pts[j]); });
+  const sA=polyArea(poly);
+  return {V,edges,ang,poly,sA,area:Math.abs(sA),sum:ang.reduce((t,a)=>t+Math.abs(a.d),0)}; }
+function transportPath(d){ const S=[]; let cum=0;
+  for(let i=0;i<3;i++){ const e=d.edges[i], p=d.V[i], N=e.pts.length-1; for(let j=0;j<=N;j++){ const pre=polar(rOfS(e.S*j/N), e.a); S.push({w:e.pts[j], tg:tanAngle(p,pre,e.a), j, cum:cum+e.S*j/N}); } cum+=e.S; }
+  let dl=1.15, prev=null, rot=0;
+  for(const s of S){ if(s.j===0 && prev!==null) dl=prev-s.tg; s.v=s.tg+dl; if(prev!==null) rot+=wrapPi(s.v-prev); s.rot=rot; prev=s.v; }
+  return {S, total:cum, hol:rot}; }
+function renderTri(){ const d=triData(), kc=kRGB(); lastTri=d;
+  fillPts(d.poly, rgba(kc,0.13));
+  d.edges.forEach(e=>{ strokePts(e.pts, rgba(kc,1), 2.6); curves3d.push({pts:e.pts, c:kc, w:2.2}); });
+  const cen=[(d.V[0][0]+d.V[1][0]+d.V[2][0])/3,(d.V[0][1]+d.V[1][1]+d.V[2][1])/3];
+  const names=['A','B','C'], greek=['α','β','γ'], sideN=['c','a','b'];
+  d.V.forEach((p,i)=>{ if(!okPt(p)) return; const P=toScr(p), {a1,d:dd}=d.ang[i];
+    ctx.beginPath(); ctx.arc(P[0],P[1],20,-a1,-(a1+dd),dd>0); ctx.strokeStyle=C.fg; ctx.lineWidth=1.3; ctx.stroke();
+    const bis=a1+dd/2, sm=view.size<520, ld=sm?34:46; text(greek[i]+' '+deg(Math.abs(dd),sm?0:1), P[0]+ld*Math.cos(bis), P[1]-ld*Math.sin(bis), {size:sm?10.5:12,align:'center',font:FONT_MONO});
+    const Q=toScr(cen), ox=P[0]-Q[0], oy=P[1]-Q[1], ol=Math.hypot(ox,oy)||1; text(names[i], P[0]+ox/ol*20, P[1]+oy/ol*20, {size:16,weight:600,font:FONT_MATH,italic:true,align:'center'}); });
+  d.edges.forEach((e,i)=>{ const m=e.pts[Math.floor(e.pts.length/2)]; if(!okPt(m)) return; const M=toScr(m), Q=toScr(cen), ox=M[0]-Q[0], oy=M[1]-Q[1], ol=Math.hypot(ox,oy)||1; text(sideN[i]+' = '+fmt(e.S,2), M[0]+ox/ol*16, M[1]+oy/ol*16, {size:11,color:C.muted,align:'center',font:FONT_MONO}); });
+  let hol=null;
+  if(state.tp.mode!=='off'){ const TP=transportPath(d); drawTransport(TP); if(state.tp.mode==='done') hol=TP.hol; }
+  d.V.forEach(p=>dot(p,7,C.canvas,rgba(kc,1),2.2));
+  const exc=d.sum-Math.PI, KA=state.K*d.sA*(d.sA>=0?1:1);
+  $('#rA').textContent=deg(Math.abs(d.ang[0].d),2); $('#rB').textContent=deg(Math.abs(d.ang[1].d),2); $('#rC').textContent=deg(Math.abs(d.ang[2].d),2);
+  $('#rSum').textContent=deg(d.sum,2); $('#rExc').textContent=fmt(exc,4); $('#rArea').textContent=fmt(d.area,4);
+  $('#rKA').textContent=fmt(state.K*d.area,4);
+  $('#rHol').textContent = hol===null ? (state.tp.mode==='run'?'移动中…':'—') : fmt(Math.abs(hol),4)+(Math.abs(hol)>1e-4?(hol>0?' 逆时针':' 顺时针'):'');
+  $('#rSides').textContent=`${fmt(d.edges[1].S,3)} · ${fmt(d.edges[2].S,3)} · ${fmt(d.edges[0].S,3)}`;
+  void KA;
+  chartTri(d);
+}
+function drawTransport(TP){ const t = state.tp.mode==='done' ? 1 : state.tp.t, target=t*TP.total; let k=0; while(k<TP.S.length-1 && TP.S[k+1].cum<=target) k++;
+  const stepL=TP.total/18; let nextL=0; for(let i=0;i<=k;i++){ if(TP.S[i].cum>=nextL-1e-9){ arrow(TP.S[i].w, TP.S[i].v, 0.3, col('mark',0.38), 1.6); nextL+=stepL; } }
+  arrow(TP.S[0].w, TP.S[0].v, 0.42, col('fg',0.45), 1.6);
+  const cur=TP.S[k]; arrow(cur.w, cur.v, 0.42, col('mark',1), 2.8); dot(cur.w,3.5,C.mark);
+  if(state.tp.mode==='done' && okPt(TP.S[0].w)){ const P=toScr(TP.S[0].w), a0=TP.S[0].v, h=TP.hol; if(Math.abs(h)>0.004){ ctx.beginPath(); ctx.arc(P[0],P[1],34,-a0,-(a0+h),h>0); ctx.strokeStyle=col('mark',1); ctx.lineWidth=1.6; ctx.stroke(); }
+    const ma=a0+h/2; text('转过 '+deg(Math.abs(h),1), P[0]+60*Math.cos(ma), P[1]-60*Math.sin(ma), {size:12,weight:700,color:C.mark,align:'center'}); }
+}
+
+/* ---------- 实验二：圆的周长 ---------- */
+function effR(){ const K=state.K; return K>EPS ? Math.min(state.circ.R, 0.985*Math.PI/Math.sqrt(K)) : state.circ.R; }
+let lastCirc=null;
+function renderCirc(){ const kc=kRGB(), c=fromPolar(state.circ.c), R=effR(), N=240, ring=[];
+  for(let i=0;i<=N;i++) ring.push(expMap(c,TAU*i/N,R));
+  fillPts(ring, rgba(kc,0.12));
+  for(let i=0;i<12;i++){ const sp=[]; for(let j=0;j<=40;j++) sp.push(expMap(c,TAU*i/12+0.26,R*j/40)); strokePts(sp, rgba(kc,0.3), 1); }
+  strokePts(ring, rgba(kc,1), 2.6);
+  const rad=[]; for(let j=0;j<=60;j++) rad.push(expMap(c,-0.55,R*j/60)); strokePts(rad, C.fg, 1.8);
+  const mid=rad[30]; if(okPt(mid)){ const M=toScr(mid); text('R = '+fmt(R,2), M[0]+10, M[1]+12, {size:12,font:FONT_MONO}); }
+  dot(c,6.5,C.canvas,rgba(kc,1),2.2);
+  curves3d.push({pts:ring,c:kc,w:2.2},{pts:rad,c:hexRGB(C.fg),w:1.4});
+  /* 在原点测量（等距变换不改变周长与面积） */
+  const M=1440, r0=rOfS(R), ring0=[]; for(let i=0;i<=M;i++) ring0.push(polar(r0,TAU*i/M));
+  const Cm=curveLen(ring0), Am=Math.abs(polyArea(ring0.slice(0,M))), Ce=TAU*R, Ae=Math.PI*R*R, Kest=3*(Ce-Cm)/(Math.PI*R*R*R);
+  lastCirc={R,Cm};
+  $('#cRv').textContent=fmt(R,3)+(R<state.circ.R-1e-9?'（已到上限）':''); $('#cCe').textContent=fmt(Ce,4); $('#cCm').textContent=fmt(Cm,4);
+  $('#cRatio').textContent=fmt(Cm/Ce,4); $('#cAm').textContent=fmt(Am,4); $('#cAe').textContent=fmt(Ae,4);
+  $('#cKest').textContent=fmt(Kest,3)+'　（当前 K = '+sgn(state.K,2)+'）';
+  chartCirc();
+}
+
+/* ---------- 实验三：测地线偏离 ---------- */
+function effL(){ const K=state.K; return K>EPS ? Math.min(state.dev.L, Math.PI/Math.sqrt(K)) : state.dev.L; }
+let lastDev=null;
+function renderDev(){ const K=state.K, kc=kRGB(), Le=effL(), n=state.dev.n, sp=state.dev.spread, B=[-rOfS(Le/2),0], NS=140;
+  for(let k=1;k<=6;k++){ const sk=Le*k/6, arc=[]; for(let j=0;j<=48;j++) arc.push(expMap(B,-sp/2+sp*j/48,sk)); strokePts(arc, col('muted',0.75), 1, [3,4]); }
+  for(let i=0;i<n;i++){ const th=-sp/2+sp*i/(n-1), pts=[]; for(let j=0;j<=NS;j++) pts.push(expMap(B,th,Le*j/NS)); const edge=(i===0||i===n-1); strokePts(pts, rgba(kc,edge?1:0.55), edge?2.4:1.3); if(edge||i===(n>>1)) curves3d.push({pts,c:kc,w:edge?2:1.2}); }
+  const Bs=toScr(B); dot(B,6,C.canvas,C.fg); text('出发点', Bs[0]-10, Bs[1]-14, {size:12,align:'right'});
+  const end=expMap(B,0,Le), conj = K>EPS && state.dev.L>=Math.PI/Math.sqrt(K)-1e-6;
+  if(conj && okPt(end)){ dot(end,8,null,C.mark,2.4); const E=toScr(end); text('共轭点', E[0]+12, E[1]-14, {size:12,weight:700,color:C.mark}); }
+  const arcE=[]; for(let j=0;j<=400;j++) arcE.push(expMap(B,-sp/2+sp*j/400,Le)); const Jm=curveLen(arcE), Je=sp*Le;
+  /* 外侧间距标注 */
+  const a1=arcE[0], a2=arcE[400]; if(okPt(a1)&&okPt(a2)&&!conj){ const P1=toScr(a1), P2=toScr(a2); text('J', (P1[0]+P2[0])/2+14, (P1[1]+P2[1])/2, {size:14,font:FONT_MATH,italic:true,weight:600}); }
+  lastDev={Le,Jm};
+  $('#dLv').textContent=fmt(Le,3)+(Le<state.dev.L-1e-9?'（到达共轭点）':''); $('#dJe').textContent=fmt(Je,4); $('#dJm').textContent=fmt(Jm,4); $('#dRatio').textContent=fmt(Jm/Je,4);
+  $('#dConjV').textContent = K>EPS ? 'π/√K = '+fmt(Math.PI/Math.sqrt(K),3)+'：所有测地线在这里重新相交' : (Math.abs(K)<EPS ? '不存在：平面上直线只相交一次' : '不存在：测地线一旦分开就越分越远');
+  chartDev();
+}
+
+/* ---------- 实验四：平行公设 ---------- */
+function angPar(h){ const K=state.K; if(K>EPS) return null; if(K>-EPS) return Math.PI/2; return 2*Math.atan(Math.exp(-Math.sqrt(-K)*h)); }
+function meets(psi){ const K=state.K; if(K>EPS) return true; if(K>-EPS) return Math.abs(psi-Math.PI/2)>1e-9; return Math.min(psi,Math.PI-psi) < angPar(state.par.h)-1e-12; }
+function fullLine(b,beta){ const K=state.K, pts=[], M=280; if(K<-EPS){ const Rb=diskR()*0.9995; for(let i=0;i<=M;i++) pts.push(T(b, polar(Rb*(2*i/M-1),beta))); } else { const Sm = K>EPS ? 0.9995*Math.PI/Math.sqrt(K) : 16; for(let i=0;i<=M;i++) pts.push(T(b, polar(rOfS(Sm*(2*i/M-1)),beta))); } return pts; }
+function crossings(pts){ const out=[]; for(let i=0;i<pts.length-1;i++){ const a=pts[i], b=pts[i+1]; if(!okPt(a)||!okPt(b)) continue; if(Math.hypot(b[0]-a[0],b[1]-a[1])>1) continue; if((a[1]>0)!==(b[1]>0)){ const t=a[1]/(a[1]-b[1]); out.push([a[0]+(b[0]-a[0])*t, 0]); } } return out; }
+function renderPar(){ const K=state.K, kc=kRGB(), h=state.par.h, P=[0,rOfS(h)], Pi=angPar(h), M=28;
+  for(let i=0;i<M;i++){ const psi=(i+0.5)*Math.PI/M, pts=fullLine(P,-Math.PI/2+psi), m=meets(psi); strokePts(pts, m?col('muted',0.4):rgba(kc,0.85), m?1:1.4); }
+  if(K<-EPS){ for(const psi of [Pi,Math.PI-Pi]){ strokePts(fullLine(P,-Math.PI/2+psi), C.fg, 1.8, [7,5]); } }
+  else if(K<EPS){ strokePts(fullLine(P,0), C.fg, 1.8, [7,5]); }
+  const Lp=fullLine([0,0],0); strokePts(Lp, C.fg, 3); curves3d.push({pts:Lp,c:hexRGB(C.fg),w:2.2});
+  const hl=fullLine(P,-Math.PI/2+state.par.psi); strokePts(hl, col('mark',1), 3); curves3d.push({pts:hl,c:hexRGB(C.mark),w:2.2});
+  const hit=meets(state.par.psi) ? crossings(hl) : []; hit.forEach(x=>dot(x,5.5,C.mark,C.canvas,2));
+  const perp=[]; for(let j=0;j<=30;j++) perp.push([0,P[1]*j/30]); strokePts(perp, C.muted, 1.4, [3,3]);
+  const Ps=toScr(P), Os=toScr([0,0]); text('h', Ps[0]+10, (Ps[1]+Os[1])/2, {size:14,font:FONT_MATH,italic:true,weight:600});
+  if(Pi!==null && Pi<Math.PI/2-1e-3){ ctx.beginPath(); ctx.arc(Ps[0],Ps[1],30,Math.PI/2-Pi,Math.PI/2); ctx.strokeStyle=C.fg; ctx.lineWidth=1.3; ctx.stroke(); text('Π', Ps[0]+44*Math.cos(Math.PI/2-Pi/2), Ps[1]+44*Math.sin(Math.PI/2-Pi/2), {size:13,font:FONT_MATH,italic:true,weight:600}); }
+  dot(P,7,C.canvas,C.fg,2.2); text('P', Ps[0]-12, Ps[1]-12, {size:16,font:FONT_MATH,italic:true,weight:600,align:'right'});
+  const Lend=toScr([Math.min(halfWidth()*0.92, K<-EPS?diskR()*0.9:99),0]); text('L', Lend[0]-4, Lend[1]-12, {size:16,font:FONT_MATH,italic:true,weight:600,align:'right'});
+  $('#pHv').textContent=fmt(h,3); $('#pPi').textContent = Pi===null ? '不存在' : deg(Pi,2);
+  $('#pCount').textContent = K>EPS ? '0 条：任意两条直线（大圆）都相交' : (K>-EPS ? '恰好 1 条：与垂线成 90° 的那条' : '无穷多条：与垂线夹角在 Π 与 180° − Π 之间的都是');
+  const q=Math.min(state.par.psi, Math.PI-state.par.psi);
+  $('#pLine').textContent = meets(state.par.psi) ? `ψ = ${deg(state.par.psi,1)}，与 L 相交（画面中 ${hit.length} 个交点）` : (Pi!==null && Math.abs(q-Pi)<0.004 ? `ψ = ${deg(state.par.psi,1)}，渐近平行：在无穷远处与 L 相会` : `ψ = ${deg(state.par.psi,1)}，与 L 永不相交`);
+  chartPar();
+}
+
+/* ---------- 定量曲线 ---------- */
+const ch=$('#chart'), gc=ch.getContext('2d');
+let capKey='';
+function niceTicks(a,b,n){ const span=b-a; if(span<=0) return []; const raw=span/n, mag=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/mag; const step=(f<1.5?1:f<3.5?2:f<7.5?5:10)*mag; const out=[]; for(let v=Math.ceil(a/step-1e-9)*step; v<=b+1e-9; v+=step) out.push(Math.abs(v)<1e-12?0:v); return out; }
+const tickTxt = v => minus(String(+v.toFixed(3)));
+function drawChart(cfg){ const W=ch.clientWidth, H=ch.clientHeight; if(!W||!H) return; gc.setTransform(DPR,0,0,DPR,0,0); gc.clearRect(0,0,W,H);
+  const m={l:40,r:10,t:18,b:24}, {x0,x1,y0,y1}=cfg; const X=x=>m.l+(x-x0)/(x1-x0)*(W-m.l-m.r), Y=y=>m.t+(y1-y)/(y1-y0)*(H-m.t-m.b);
+  gc.font=`10px ${FONT_MONO}`; gc.lineWidth=1;
+  for(const t of niceTicks(x0,x1,5)){ gc.strokeStyle=C.grid; gc.beginPath(); gc.moveTo(X(t),m.t); gc.lineTo(X(t),H-m.b); gc.stroke(); gc.fillStyle=C.muted; gc.textAlign='center'; gc.textBaseline='top'; gc.fillText(tickTxt(t),X(t),H-m.b+5); }
+  for(const t of niceTicks(y0,y1,4)){ gc.strokeStyle=C.grid; gc.beginPath(); gc.moveTo(m.l,Y(t)); gc.lineTo(W-m.r,Y(t)); gc.stroke(); gc.fillStyle=C.muted; gc.textAlign='right'; gc.textBaseline='middle'; gc.fillText(tickTxt(t),m.l-6,Y(t)); }
+  gc.strokeStyle=C.line; gc.beginPath(); gc.moveTo(m.l,m.t); gc.lineTo(m.l,H-m.b); gc.lineTo(W-m.r,H-m.b); gc.stroke();
+  if(y0<0&&y1>0){ gc.beginPath(); gc.moveTo(m.l,Y(0)); gc.lineTo(W-m.r,Y(0)); gc.stroke(); }
+  gc.save(); gc.beginPath(); gc.rect(m.l,m.t-3,W-m.l-m.r,H-m.t-m.b+6); gc.clip();
+  gc.font=`10px ${FONT_BODY}`;
+  for(const h of cfg.hlines||[]){ gc.strokeStyle=h.col; gc.setLineDash([2,3]); gc.beginPath(); gc.moveTo(m.l,Y(h.y)); gc.lineTo(W-m.r,Y(h.y)); gc.stroke(); gc.setLineDash([]); gc.fillStyle=h.col; gc.textAlign='right'; gc.textBaseline='bottom'; gc.fillText(h.label||'',W-m.r-4,Y(h.y)-2); }
+  for(const v of cfg.vlines||[]){ gc.strokeStyle=v.col; gc.setLineDash([2,3]); gc.beginPath(); gc.moveTo(X(v.x),m.t); gc.lineTo(X(v.x),H-m.b); gc.stroke(); gc.setLineDash([]); gc.fillStyle=v.col; gc.textAlign='left'; gc.textBaseline='top'; gc.fillText(v.label||'',X(v.x)+4,m.t+2); }
+  for(const c of cfg.curves){ gc.beginPath(); let pen=false; const span=y1-y0; for(let i=0;i<=240;i++){ const x=x0+(x1-x0)*i/240, y=c.f(x); if(y===null||!isFinite(y)){ pen=false; continue; } const py=Y(Math.max(y0-span,Math.min(y1+span,y))); if(pen) gc.lineTo(X(x),py); else { gc.moveTo(X(x),py); pen=true; } } gc.strokeStyle=c.col; gc.lineWidth=c.w||1.3; gc.setLineDash(c.dash?[5,4]:[]); gc.stroke(); gc.setLineDash([]); }
+  for(const p of cfg.pts||[]){ if(!isFinite(p.y)) continue; gc.beginPath(); gc.arc(X(p.x),Y(Math.max(y0,Math.min(y1,p.y))),5,0,TAU); gc.fillStyle=p.col; gc.fill(); gc.strokeStyle=C.surface; gc.lineWidth=2; gc.stroke(); }
+  gc.restore();
+  gc.font=`11px ${FONT_BODY}`; gc.fillStyle=C.muted; gc.textAlign='left'; gc.textBaseline='top'; gc.fillText(cfg.yl,m.l+2,1);
+  gc.textAlign='right'; gc.textBaseline='bottom'; gc.fillText(cfg.xl,W-m.r,H-m.b-3);
+}
+const legend = items => '<br>'+items.map(it=>`<span class="sw${it.dash?' d':''}" style="border-color:${it.col}"></span>${it.label}`).join('');
+function setCap(title,html){ if(capKey===title+html) return; capKey=title+html; $('#chartTitle').textContent=title; $('#chartCap').innerHTML=html; }
+const refCurves = f => [{f:f(1),col:col('pos',.75),dash:1},{f:f(0),col:col('flat',.75),dash:1},{f:f(-1),col:col('neg',.75),dash:1}];
+const refLegend = cur => legend([{label:'当前 K',col:cur},{label:'K = +1',col:C.pos,dash:1},{label:'0',col:C.flat,dash:1},{label:'−1',col:C.neg,dash:1}]);
+
+function chartTri(d){ const K=state.K, A=d.area, ex=d.sum-Math.PI, kc=rgba(kRGB());
+  const x1=Math.max(3.2,A*1.3), y1=Math.max(1.6,ex*1.25), y0=Math.min(-1.6,Math.max(-Math.PI-0.35,ex*1.25));
+  drawChart({x0:0,x1,y0,y1,xl:'面积 A',yl:'角盈 Σ − π',curves:[...refCurves(k=>x=>k*x),{f:x=>K*x,col:kc,w:2.2}],hlines:y0<-Math.PI?[{y:-Math.PI,col:C.muted,label:'−π 下限'}]:[],pts:[{x:A,y:ex,col:kc}]});
+  setCap('角盈与面积成正比','所有测地三角形都落在斜率为 K 的直线上，圆点是当前三角形。'+refLegend(kc)); }
+function chartCirc(){ const K=state.K, kc=rgba(kRGB()); const f=k=>x=> (k>EPS && x>Math.PI/Math.sqrt(k)) ? null : (x<1e-4?1:snK(x,k)/x);
+  drawChart({x0:0,x1:3.2,y0:0,y1:2.4,xl:'半径 R',yl:'C ÷ 2πR',curves:[...refCurves(f),{f:f(K),col:kc,w:2.2}],hlines:[],pts:lastCirc?[{x:lastCirc.R,y:lastCirc.Cm/(TAU*lastCirc.R),col:kc}]:[]});
+  setCap('周长与 2πR 之比','大于 1 是双曲，等于 1 是平面，小于 1 是球面。R 很小时三条曲线都贴着 1，这就是“局部看起来像平面”。'+refLegend(kc)); }
+function chartDev(){ const K=state.K, kc=rgba(kRGB()); const f=k=>x=> (k>EPS && x>Math.PI/Math.sqrt(k)+1e-9) ? null : snK(x,k); const cj=K>EPS?Math.PI/Math.sqrt(K):null;
+  drawChart({x0:0,x1:5.5,y0:0,y1:6,xl:'距离 s',yl:'J ÷ Δθ',curves:[...refCurves(f),{f:f(K),col:kc,w:2.2}],vlines:cj&&cj<=5.5?[{x:cj,col:C.mark,label:'共轭点'}]:[],pts:lastDev?[{x:lastDev.Le,y:lastDev.Jm/state.dev.spread,col:kc}]:[]});
+  setCap('相邻测地线的间距','J(s) = Δθ·sn<sub>K</sub>(s)：球面上回落到 0，平面上是直线，双曲上指数增长。'+refLegend(kc)); }
+function chartPar(){ const K=state.K, kc=rgba(kRGB()); const f=k=>x=>2*Math.atan(Math.exp(-Math.sqrt(-k)*x))*180/Math.PI;
+  const curves=[{f:()=>90,col:col('flat',.75),dash:1},{f:f(-1),col:col('neg',.75),dash:1}]; if(K<-EPS) curves.push({f:f(K),col:kc,w:2.2});
+  const Pi=angPar(state.par.h);
+  drawChart({x0:0,x1:3,y0:0,y1:100,xl:'距离 h',yl:'平行角 Π（度）',curves,pts:Pi!==null?[{x:state.par.h,y:Pi*180/Math.PI,col:kc}]:[]});
+  setCap('平行角随距离变化',(K>EPS?'当前是球面：没有平行线，平行角无定义。':'P 离 L 越远，Π 越小，永不相交的直线就越多。')+legend([...(K<-EPS?[{label:'当前 K',col:kc}]:[]),{label:'K = 0 恒为 90°',col:C.flat,dash:1},{label:'K = −1',col:C.neg,dash:1}])); }
+
+/* ---------- 三维视图 ---------- */
+const c3=$('#c3d'), g3=c3.getContext('2d');
+let d3=null, need3d=true, cap3Key='';
+function surf(s,phi){ const K=state.K; if(K>EPS){ const a=1/Math.sqrt(K), r=a*Math.sin(s/a); return [r*Math.cos(phi), r*Math.sin(phi), -a*(1-Math.cos(s/a))]; } if(K<-EPS){ const c=Math.sqrt(-K)/2, x=s*Math.cos(phi), y=s*Math.sin(phi); return [x,y,c*(x*x-y*y)]; } return [s*Math.cos(phi), s*Math.sin(phi), 0]; }
+function render3d(){ const W=c3.clientWidth, H=c3.clientHeight; if(!W||!H) return; g3.setTransform(DPR,0,0,DPR,0,0); g3.clearRect(0,0,W,H);
+  const K=state.K, {yaw,elev}=state.v3, cy=Math.cos(yaw), sy=Math.sin(yaw), ce=Math.cos(elev), se=Math.sin(elev);
+  let smax=K<-EPS?2.0:2.3, zc=0; if(K>EPS){ const a=1/Math.sqrt(K); smax=Math.min(Math.PI*a,2.6); zc=-a*(1-Math.cos(smax/a))/2; }
+  const sc=Math.min(W,H)*0.5/2.7;
+  const P=p=>{ const x=p[0]*cy-p[1]*sy, y=p[0]*sy+p[1]*cy, z=p[2]-zc; return [W/2+x*sc, H/2-(y*se+z*ce)*sc, -y*ce+z*se]; };
+  const poly=(pts3,rgb,w,a0,a1)=>{ const Q=pts3.map(p=>p?P(p):null); g3.lineWidth=w; g3.lineCap='round'; for(let i=0;i<Q.length-1;i++){ const a=Q[i], b=Q[i+1]; if(!a||!b) continue; const t=Math.max(0,Math.min(1,((a[2]+b[2])/2+2.6)/5.2)); g3.strokeStyle=rgba(rgb,a0+(a1-a0)*t); g3.beginPath(); g3.moveTo(a[0],a[1]); g3.lineTo(b[0],b[1]); g3.stroke(); } };
+  const mr=hexRGB(C.muted);
+  for(let j=1;j<=6;j++){ const s=smax*j/6, ring=[]; for(let i=0;i<=72;i++) ring.push(surf(s,TAU*i/72)); poly(ring,mr,1,0.07,0.6); }
+  for(let i=0;i<16;i++){ const sp=[]; for(let j=0;j<=30;j++) sp.push(surf(smax*j/30,TAU*i/16)); poly(sp,mr,1,0.07,0.6); }
+  if(K>=-EPS){ for(const cu of curves3d){ const pts=[], n=cu.pts.length, step=Math.max(1,Math.floor(n/160)); for(let i=0;i<n;i+=step){ const w=cu.pts[i]; if(!okPt(w)){ pts.push(null); continue; } const pp=toPolar(w); pts.push(surf(pp.s,pp.p)); } const lw=cu.pts[n-1]; if(okPt(lw)){ const pp=toPolar(lw); pts.push(surf(pp.s,pp.p)); } poly(pts,cu.c,cu.w,0.22,1); } }
+  const o=P(surf(0,0)); g3.beginPath(); g3.arc(o[0],o[1],3,0,TAU); g3.fillStyle=C.fg; g3.fill();
+  g3.font=`italic 13px ${FONT_MATH}`; g3.fillStyle=C.fg; g3.textAlign='left'; g3.textBaseline='bottom'; g3.fillText('O',o[0]+5,o[1]-3);
+  const cap = K>EPS ? `半径 1/√K = ${fmt(1/Math.sqrt(K),2)} 的球面。画布上的图形按测地极坐标原样贴到球上，O 对应画布中心。`
+    : K>=-EPS ? '平面。把它卷成圆柱面，内部的任何测量都不变，所以圆柱面的高斯曲率同样是 0。'
+    : '马鞍面只在中心点的曲率等于 K，越往外越平。完整的双曲平面无法光滑地等距放进三维欧氏空间（希尔伯特定理），所以实验在左边的圆盘模型里做。';
+  if(cap!==cap3Key){ cap3Key=cap; $('#c3dCap').textContent=cap; } }
+c3.addEventListener('pointerdown',e=>{ d3={x:e.clientX,y:e.clientY}; c3.setPointerCapture(e.pointerId); c3.style.cursor='grabbing'; });
+c3.addEventListener('pointermove',e=>{ if(!d3) return; state.v3.yaw-=(e.clientX-d3.x)*0.01; state.v3.elev=Math.max(0.1,Math.min(1.52,state.v3.elev+(e.clientY-d3.y)*0.008)); d3={x:e.clientX,y:e.clientY}; need3d=true; });
+const end3=()=>{ d3=null; c3.style.cursor='grab'; }; c3.addEventListener('pointerup',end3); c3.addEventListener('pointercancel',end3);
+
+/* ---------- 主渲染与界面 ---------- */
+const HINTS={
+  tri:'拖动顶点 A、B、C 改变三角形。按住三角形内部拖动，会用等距变换整体搬运它：画布上的形状变了，角度和面积却保持不变。',
+  circ:'拖动圆心或圆的内部来移动圆，用右侧滑块改半径。圆移到哪里，测得的周长和面积都一样，因为常曲率空间里每一点都是平等的。',
+  dev:'从出发点射出一束测地线，虚线是到出发点距离相等的波前。观察最外两条测地线的间距 J 怎样变化。',
+  par:'上下拖动点 P 改变它到直线 L 的距离。灰线与 L 相交，彩色线永不相交，黑色虚线是渐近平行线，琥珀色线由 ψ 滑块控制。'
+};
+const kRange=$('#kRange'), kOut=$('#kOut'), kName=$('#kName'), kMeta=$('#kMeta');
+let tween=null, sweepPhase=0;
+function setK(k){ state.K=Math.max(-1.5,Math.min(1.5,k)); if(Math.abs(state.K)<1e-9) state.K=0; dirty=true; }
+function updateKUI(){ const K=state.K, kc=kRGB(); document.documentElement.style.setProperty('--kc', rgba(kc)); kOut.textContent='K = '+sgn(K,2); const z=Math.abs(K)<EPS;
+  kName.textContent = z ? '欧氏几何 · 零曲率' : (K>0 ? '球面几何 · 正曲率' : '双曲几何 · 负曲率');
+  kMeta.textContent = z ? '曲率半径为无穷大，画布就是普通平面。' : K>0 ? `曲率半径 1/√K = ${fmt(1/Math.sqrt(K),3)}，整个球面的面积 4π/K = ${fmt(4*Math.PI/K,2)}。` : `曲率半径 1/√−K = ${fmt(1/Math.sqrt(-K),3)}，画布上的圆盘半径 2/√−K = ${fmt(2/Math.sqrt(-K),2)}。`;
+  if(parseFloat(kRange.value)!==K) kRange.value=K;
+  $$('[data-k]').forEach(b=>b.setAttribute('aria-pressed', String(Math.abs(K-parseFloat(b.dataset.k))<0.005)));
+  const dc=$('#dConj'); dc.disabled=!(K>EPS && Math.PI/Math.sqrt(K)<=5.5); dc.title = dc.disabled ? '只有 K ≥ 0.33 的球面上，共轭点才在滑块范围内' : ''; }
+function render(){ ctx.setTransform(DPR,0,0,DPR,0,0); view.scale=(view.size/2)/halfWidth(); curves3d=[]; drawBackground();
+  ({tri:renderTri,circ:renderCirc,dev:renderDev,par:renderPar})[state.tab](); updateKUI(); }
+function stopAuto(){ tween=null; if(state.sweep){ state.sweep=false; const b=$('#sweep'); b.setAttribute('aria-pressed','false'); b.textContent='自动扫描 K'; } }
+kRange.addEventListener('input',()=>{ stopAuto(); setK(parseFloat(kRange.value)); });
+$$('[data-k]').forEach(b=>b.addEventListener('click',()=>{ stopAuto(); const k=parseFloat(b.dataset.k); if(reduceMotion) setK(k); else tween={from:state.K,to:k,t:0}; }));
+$('#sweep').addEventListener('click',e=>{ if(state.sweep){ stopAuto(); return; } tween=null; state.sweep=true; sweepPhase=Math.asin(Math.max(-1,Math.min(1,state.K/1.5))); e.currentTarget.setAttribute('aria-pressed','true'); e.currentTarget.textContent='停止扫描'; });
+
+function selectTab(t){ state.tab=t; $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t))); $$('.panel').forEach(p=>p.hidden=p.dataset.panel!==t); $('#hint').textContent=HINTS[t]; capKey=''; dirty=true; try{ localStorage.setItem('curvlab-tab',t); }catch(err){} }
+$$('.tab').forEach(b=>b.addEventListener('click',()=>selectTab(b.dataset.tab)));
+$$('[data-go]').forEach(b=>b.addEventListener('click',()=>{ selectTab(b.dataset.go); if(b.textContent.includes('度量')){ state.layers.tissot=true; $('#lyTissot').checked=true; } $('#lab').scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'}); }));
+const maxS = () => Math.max(...state.tri.map(p=>p.s));
+function syncOutputs(){ const ae=document.activeElement;
+  $('#oTriSize').textContent=fmt(maxS(),2); if(ae!==$('#triSize')) $('#triSize').value=maxS();
+  $('#oR').textContent=fmt(state.circ.R,2); $('#oN').textContent=state.dev.n; $('#oSpread').textContent=Math.round(state.dev.spread*180/Math.PI)+'°';
+  $('#oL').textContent=fmt(state.dev.L,2); if(ae!==$('#dL')) $('#dL').value=state.dev.L;
+  $('#oH').textContent=fmt(state.par.h,2); if(ae!==$('#pH')) $('#pH').value=state.par.h; $('#oPsi').textContent=fmt(state.par.psi*180/Math.PI,1)+'°'; }
+const bind=(id,fn)=>$(id).addEventListener('input',e=>{ fn(parseFloat(e.target.value)); dirty=true; syncOutputs(); });
+bind('#triSize',v=>{ const mx=maxS()||1; state.tri=state.tri.map(p=>({s:Math.max(0.02,p.s*v/mx),p:p.p})); });
+bind('#cR',v=>{ state.circ.R=v; });
+bind('#dN',v=>{ state.dev.n=v; });
+bind('#dSpread',v=>{ state.dev.spread=v*Math.PI/180; });
+bind('#dL',v=>{ state.dev.L=v; });
+bind('#pH',v=>{ state.par.h=v; });
+bind('#pPsi',v=>{ state.par.psi=v*Math.PI/180; });
+function updTpBtn(){ $('#tpGo').textContent = state.tp.mode==='run' ? '停止' : (state.tp.mode==='done' ? '再移动一次' : '沿边平行移动一圈'); }
+$('#tpGo').addEventListener('click',()=>{ if(state.tp.mode==='run'){ state.tp.mode='off'; } else if(reduceMotion){ state.tp.mode='done'; } else { state.tp.mode='run'; state.tp.t=0; } updTpBtn(); dirty=true; });
+$('#triReset').addEventListener('click',()=>{ state.tri=DEFAULT_TRI(); state.tp.mode='off'; updTpBtn(); syncOutputs(); dirty=true; });
+$('#dConj').addEventListener('click',()=>{ if(state.K>EPS){ state.dev.L=Math.PI/Math.sqrt(state.K); syncOutputs(); dirty=true; } });
+$('#lyPolar').addEventListener('change',e=>{ state.layers.polar=e.target.checked; dirty=true; });
+$('#lyTissot').addEventListener('change',e=>{ state.layers.tissot=e.target.checked; dirty=true; });
+
+/* 拖动 */
+let drag=null;
+function hitTest(x,y,m){ const near=w=>{ if(!okPt(w)) return false; const p=toScr(w); return Math.hypot(p[0]-x,p[1]-y)<18; };
+  if(state.tab==='tri'){ const V=state.tri.map(fromPolar); for(let i=0;i<3;i++) if(near(V[i])) return {kind:'vert',i}; if(lastTri && inPoly(m,lastTri.poly)) return {kind:'move'}; }
+  if(state.tab==='circ'){ const c=fromPolar(state.circ.c); if(near(c)) return {kind:'center'}; if(dist(c,m)<effR()) return {kind:'cmove'}; }
+  if(state.tab==='par'){ if(near([0,rOfS(state.par.h)])) return {kind:'P'}; }
+  return null; }
+function applyDrag(d,m){ const cap=vertexCap();
+  if(d.kind==='vert'){ const p=toPolar(m); p.s=Math.min(p.s,cap); state.tri[d.i]=p; }
+  else if(d.kind==='move'){ const nv=state.tri.map(pt=>toPolar(T(m,Tinv(d.last,fromPolar(pt))))); if(nv.every(p=>p.s<=cap)) state.tri=nv; }
+  else if(d.kind==='center'||d.kind==='cmove'){ const c=fromPolar(state.circ.c), nc = d.kind==='center' ? m : T(m,Tinv(d.last,c)), p=toPolar(nc); if(p.s<=cap) state.circ.c=p; }
+  else if(d.kind==='P'){ state.par.h=Math.max(0.05,Math.min(3,sOfR(Math.max(1e-4,m[1])))); }
+  syncOutputs(); }
+const evPos=e=>{ const r=cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; };
+cv.addEventListener('pointerdown',e=>{ const [x,y]=evPos(e), m=clampModel(fromScr(x,y)); drag=hitTest(x,y,m); if(drag){ drag.last=m; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing'; e.preventDefault(); } });
+cv.addEventListener('pointermove',e=>{ const [x,y]=evPos(e), m=clampModel(fromScr(x,y)); if(!drag){ cv.style.cursor = hitTest(x,y,m) ? 'grab' : 'crosshair'; return; } applyDrag(drag,m); drag.last=m; dirty=true; });
+const endDrag=()=>{ drag=null; cv.style.cursor='crosshair'; }; cv.addEventListener('pointerup',endDrag); cv.addEventListener('pointercancel',endDrag);
+
+/* 尺寸与主题 */
+function resize(){ DPR=Math.min(window.devicePixelRatio||1,2); const w=Math.max(200,Math.floor(cv.parentElement.clientWidth)); cv.style.height=w+'px'; cv.width=Math.round(w*DPR); cv.height=Math.round(w*DPR); view.size=w; view.cx=w/2; view.cy=w/2;
+  for(const c of [ch,c3]){ c.width=Math.round(c.clientWidth*DPR); c.height=Math.round(c.clientHeight*DPR); } capKey=''; dirty=true; need3d=true; }
+const ro=new ResizeObserver(resize); ro.observe(cv.parentElement); ro.observe($('.side'));
+const reTheme=()=>{ readColors(); capKey=''; dirty=true; need3d=true; };
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',reTheme);
+new MutationObserver(reTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts){ const want=['500 12px "Noto Sans SC"','700 12px "Noto Sans SC"','400 12px "JetBrains Mono"','italic 400 16px "STIX Two Text"','400 16px "STIX Two Math"']; Promise.all(want.map(f=>document.fonts.load(f).catch(()=>null))).then(()=>document.fonts.ready).then(()=>{ capKey=''; dirty=true; need3d=true; }); }
+
+let last=performance.now();
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(tween){ tween.t=Math.min(1,tween.t+dt/0.7); const e=1-Math.pow(1-tween.t,3); setK(tween.from+(tween.to-tween.from)*e); if(tween.t>=1){ setK(tween.to); tween=null; } }
+  if(state.sweep){ sweepPhase+=dt*0.45; setK(1.5*Math.sin(sweepPhase)); }
+  if(state.tp.mode==='run'){ state.tp.t+=dt/5; if(state.tp.t>=1){ state.tp.t=1; state.tp.mode='done'; updTpBtn(); } dirty=true; }
+  let drew=false; if(dirty){ dirty=false; render(); drew=true; }
+  if(state.v3.auto && !d3){ state.v3.yaw+=dt*0.2; need3d=true; }
+  if(need3d||drew){ need3d=false; render3d(); }
+  requestAnimationFrame(frame); }
+
+readColors();
+try{ const t=localStorage.getItem('curvlab-tab'); if(t && HINTS[t]) state.tab=t; }catch(err){}
+selectTab(state.tab); syncOutputs(); updTpBtn(); resize(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
